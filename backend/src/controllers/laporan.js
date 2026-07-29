@@ -241,7 +241,7 @@ export const exportLaporanKasPDF = async (req, res) => {
     const doc = new PDFDocument({ margin: 30, size: 'A4' });
     let filename = 'laporan_kas.pdf';
     
-    res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
+    res.setHeader('Content-disposition', 'inline; filename="' + filename + '"');
     res.setHeader('Content-type', 'application/pdf');
 
     doc.pipe(res);
@@ -286,19 +286,19 @@ export const exportLaporanKasPDF = async (req, res) => {
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
 
-    const tableRows = [];
+    const tableData = [];
     
     // Saldo Awal Row
-    tableRows.push([
-      '', 
-      '', 
-      '', 
-      'Saldo Awal', 
-      '', 
-      '', 
-      '', 
-      formatRupiah(currentSaldo)
-    ]);
+    tableData.push({
+      no: '', 
+      tanggal: '', 
+      kategori: '', 
+      uraian: 'Saldo Awal', 
+      penerima: '', 
+      pemasukan: '', 
+      pengeluaran: '', 
+      saldo: formatRupiah(currentSaldo)
+    });
 
     let displayedRowNumber = 1;
     allTransactions.forEach((t) => {
@@ -317,43 +317,43 @@ export const exportLaporanKasPDF = async (req, res) => {
           totalPengeluaran += t.nominal;
         }
 
-        tableRows.push([
-          (displayedRowNumber++).toString(),
-          t.tanggal.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-          t.kategori,
-          t.uraian,
-          t.penerima,
-          isMasuk ? formatRupiah(t.nominal) : '',
-          !isMasuk ? formatRupiah(t.nominal) : '',
-          formatRupiah(currentSaldo)
-        ]);
+        tableData.push({
+          no: (displayedRowNumber++).toString(),
+          tanggal: t.tanggal.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          kategori: String(t.kategori || '-'),
+          uraian: String(t.uraian || '-'),
+          penerima: String(t.penerima || '-'),
+          pemasukan: isMasuk ? formatRupiah(t.nominal) : '',
+          pengeluaran: !isMasuk ? formatRupiah(t.nominal) : '',
+          saldo: formatRupiah(currentSaldo)
+        });
       }
     });
 
     // Total Row
-    tableRows.push([
-      '', 
-      '', 
-      '', 
-      'TOTAL', 
-      '', 
-      formatRupiah(totalPemasukan), 
-      formatRupiah(totalPengeluaran), 
-      formatRupiah(currentSaldo)
-    ]);
+    tableData.push({
+      no: '', 
+      tanggal: '', 
+      kategori: '', 
+      uraian: 'TOTAL', 
+      penerima: '', 
+      pemasukan: formatRupiah(totalPemasukan), 
+      pengeluaran: formatRupiah(totalPengeluaran), 
+      saldo: formatRupiah(currentSaldo)
+    });
 
     const table = {
       headers: [
-        { label: "No", width: 25 },
-        { label: "Tanggal", width: 55 },
-        { label: "Kategori", width: 70 },
-        { label: "Uraian", width: 100 },
-        { label: "Penerima", width: 65 },
-        { label: "Pemasukan", width: 75 },
-        { label: "Pengeluaran", width: 75 },
-        { label: "Saldo", width: 70 },
+        { label: "No", property: "no", width: 25 },
+        { label: "Tanggal", property: "tanggal", width: 55 },
+        { label: "Kategori", property: "kategori", width: 70 },
+        { label: "Uraian", property: "uraian", width: 100 },
+        { label: "Penerima", property: "penerima", width: 65 },
+        { label: "Pemasukan", property: "pemasukan", width: 75 },
+        { label: "Pengeluaran", property: "pengeluaran", width: 75 },
+        { label: "Saldo", property: "saldo", width: 70 },
       ],
-      rows: tableRows,
+      datas: tableData,
     };
 
     await doc.table(table, {
