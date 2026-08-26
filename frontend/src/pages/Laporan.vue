@@ -72,7 +72,7 @@ const handleExport = (format) => {
       params.append('token', authStore.token);
     }
     
-    window.location.href = `${exportUrl}?${params.toString()}`;
+    window.open(`${exportUrl}?${params.toString()}`, '_blank');
   } catch (error) {
     console.error(`Gagal mengunduh laporan ${format}`);
     alert("Terjadi kesalahan saat mengunduh laporan.");
