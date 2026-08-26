@@ -241,7 +241,7 @@ export const exportLaporanKasPDF = async (req, res) => {
     const doc = new PDFDocument({ margin: 30, size: 'A4' });
     let filename = 'laporan_kas.pdf';
     
-    res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
+    res.setHeader('Content-disposition', 'inline; filename="' + filename + '"');
     res.setHeader('Content-type', 'application/pdf');
 
     doc.pipe(res);
