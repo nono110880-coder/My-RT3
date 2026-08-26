@@ -58,23 +58,27 @@ onMounted(() => {
   }
 });
 
-const handleExport = (format) => {
+const handleExport = async (format) => {
   try {
-    const authStore = useAuthStore();
-    const baseURL = api.defaults.baseURL || getBaseUrl();
-    let exportUrl = `${baseURL}/laporan/${format}`;
-    
     const params = new URLSearchParams();
     if (activeTab.value === 'bulanan') {
       params.append('periode', selectedPeriod.value);
     }
-    if (authStore.token) {
-      params.append('token', authStore.token);
-    }
     
-    window.open(`${exportUrl}?${params.toString()}`, '_blank');
+    const response = await api.get(`/laporan/${format}?${params.toString()}`, {
+      responseType: 'blob'
+    });
+
+    const mimeType = format === 'pdf' 
+      ? 'application/pdf' 
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      
+    const fileBlob = new Blob([response.data], { type: mimeType });
+    const fileUrl = URL.createObjectURL(fileBlob);
+
+    window.open(fileUrl, '_blank');
   } catch (error) {
-    console.error(`Gagal mengunduh laporan ${format}`);
+    console.error(`Gagal mengunduh laporan ${format}`, error);
     alert("Terjadi kesalahan saat mengunduh laporan.");
   }
 };
