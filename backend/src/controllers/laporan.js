@@ -238,17 +238,7 @@ export const exportLaporanKasPDF = async (req, res) => {
       headerText += ` - Bulan ${localMonthNames[targetMonthIndex]} ${targetYear}`;
     }
 
-    const doc = new PDFDocument({ margin: 30, size: 'A4' });
-    let filename = 'laporan_kas.pdf';
-    
-    res.setHeader('Content-disposition', 'inline; filename="' + filename + '"');
-    res.setHeader('Content-type', 'application/pdf');
-
-    doc.pipe(res);
-
-    doc.fontSize(16).text(headerText, { align: 'center' });
-    doc.moveDown(2);
-
+    // --- FETCH DATA FIRST ---
     const pemasukan = await prisma.pemasukan.findMany({ 
       include: { kategoripemasukan: true, warga: true },
       orderBy: { tanggal: 'asc' }
@@ -290,13 +280,13 @@ export const exportLaporanKasPDF = async (req, res) => {
     
     // Saldo Awal Row
     tableData.push({
-      no: '', 
-      tanggal: '', 
-      kategori: '', 
+      no: '-', 
+      tanggal: '-', 
+      kategori: '-', 
       uraian: 'Saldo Awal', 
-      penerima: '', 
-      pemasukan: '', 
-      pengeluaran: '', 
+      penerima: '-', 
+      pemasukan: '-', 
+      pengeluaran: '-', 
       saldo: formatRupiah(currentSaldo)
     });
 
@@ -323,8 +313,8 @@ export const exportLaporanKasPDF = async (req, res) => {
           kategori: String(t.kategori || '-'),
           uraian: String(t.uraian || '-'),
           penerima: String(t.penerima || '-'),
-          pemasukan: isMasuk ? formatRupiah(t.nominal) : '',
-          pengeluaran: !isMasuk ? formatRupiah(t.nominal) : '',
+          pemasukan: isMasuk ? formatRupiah(t.nominal) : '-',
+          pengeluaran: !isMasuk ? formatRupiah(t.nominal) : '-',
           saldo: formatRupiah(currentSaldo)
         });
       }
@@ -332,15 +322,32 @@ export const exportLaporanKasPDF = async (req, res) => {
 
     // Total Row
     tableData.push({
-      no: '', 
-      tanggal: '', 
-      kategori: '', 
+      no: '-', 
+      tanggal: '-', 
+      kategori: '-', 
       uraian: 'TOTAL', 
-      penerima: '', 
+      penerima: '-', 
       pemasukan: formatRupiah(totalPemasukan), 
       pengeluaran: formatRupiah(totalPengeluaran), 
       saldo: formatRupiah(currentSaldo)
     });
+
+    // --- NOW INITIALIZE PDF ---
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    let filename = 'laporan_kas.pdf';
+    
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => {
+      const result = Buffer.concat(chunks);
+      res.setHeader('Content-Length', Buffer.byteLength(result));
+      res.setHeader('Content-disposition', 'inline; filename="' + filename + '"');
+      res.setHeader('Content-type', 'application/pdf');
+      res.send(result);
+    });
+
+    doc.fontSize(16).text(headerText, { align: 'center' });
+    doc.moveDown(2);
 
     const table = {
       headers: [
@@ -365,8 +372,12 @@ export const exportLaporanKasPDF = async (req, res) => {
 
     doc.end();
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("PDF Generation Error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server error' });
+    } else {
+      res.end();
+    }
   }
 };
 
