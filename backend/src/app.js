@@ -16,7 +16,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // API Routes
-app.use('/api', routes)
+app.use('/api/auth', authRoutes);
 
 // Static Files & SPA Fallback for Single Server (Frontend + Backend unified)
 const frontendDistPath = path.resolve(__dirname, '../../frontend/dist')
