@@ -58,36 +58,28 @@ onMounted(() => {
   }
 });
 
-const handleExport = async (format) => {
+const handleExport = (format) => {
   try {
     const params = new URLSearchParams();
     if (activeTab.value === 'bulanan') {
       params.append('periode', selectedPeriod.value);
     }
     
-    const response = await api.get(`/laporan/${format}?${params.toString()}`, {
-      responseType: 'blob'
-    });
-
-    const mimeType = format === 'pdf' 
-      ? 'application/pdf' 
-      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      
-    const fileBlob = new Blob([response.data], { type: mimeType });
-    const fileUrl = URL.createObjectURL(fileBlob);
+    // Cache buster untuk menghindari cache Service Worker / Browser
+    params.append('_cb', Date.now());
+    
+    const url = `${getBaseUrl()}/laporan/${format}?${params.toString()}`;
 
     if (format === 'pdf') {
-      window.open(fileUrl, '_blank');
-      setTimeout(() => URL.revokeObjectURL(fileUrl), 60000); // Beri waktu sebelum object URL dihapus agar tab baru sempat memuatnya
+      window.open(url, '_blank');
     } else {
       const link = document.createElement('a');
-      link.href = fileUrl;
-      link.setAttribute('download', `Laporan_Keuangan.xlsx`);
+      link.href = url;
+      link.setAttribute('download', 'Laporan_Keuangan.xlsx');
+      link.setAttribute('target', '_blank');
       document.body.appendChild(link);
       link.click();
-      
       document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(fileUrl), 100);
     }
   } catch (error) {
     console.error(`Gagal mengunduh laporan ${format}`, error);
