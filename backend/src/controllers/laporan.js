@@ -2,18 +2,18 @@ import prisma from '../utils/prisma.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const ExcelJS = require('exceljs');
-const PDFDocument = require('pdfkit-table');
+import puppeteer from 'puppeteer';
 
 async function getInitialBalance(periode) {
   const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   function parsePeriode(periodeString) {
     const parts = periodeString.split(' ');
     if (parts.length === 2) {
-        const monthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === parts[0].toLowerCase());
-        const year = parseInt(parts[1]);
-        if (monthIndex !== -1 && !isNaN(year)) {
-            return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-        }
+      const monthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === parts[0].toLowerCase());
+      const year = parseInt(parts[1]);
+      if (monthIndex !== -1 && !isNaN(year)) {
+        return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+      }
     }
     return periodeString;
   }
@@ -23,7 +23,7 @@ async function getInitialBalance(periode) {
   const allSaldoAwal = await prisma.saldoawal.findMany();
 
   const periodMap = new Map();
-  
+
   allSaldoAwal.forEach(s => {
     const ym = parsePeriode(s.periode);
     periodMap.set(ym, { pemasukan: 0, pengeluaran: 0, saldoAwal: Number(s.saldo_awal) });
@@ -40,12 +40,12 @@ async function getInitialBalance(periode) {
   });
 
   const sortedKeys = Array.from(periodMap.keys()).sort();
-  
+
   if (!periode) {
-     if (sortedKeys.length > 0 && periodMap.get(sortedKeys[0]).saldoAwal !== null) {
-         return periodMap.get(sortedKeys[0]).saldoAwal;
-     }
-     return 0;
+    if (sortedKeys.length > 0 && periodMap.get(sortedKeys[0]).saldoAwal !== null) {
+      return periodMap.get(sortedKeys[0]).saldoAwal;
+    }
+    return 0;
   }
 
   let currentSaldo = 0;
@@ -59,22 +59,22 @@ async function getInitialBalance(periode) {
         return currentSaldo;
       }
     }
-    
+
     const data = periodMap.get(key);
     if (data.saldoAwal !== null) {
       currentSaldo = data.saldoAwal;
     }
     currentSaldo = currentSaldo + data.pemasukan - data.pengeluaran;
-    initialBalance = currentSaldo; 
+    initialBalance = currentSaldo;
   }
-  
+
   return initialBalance;
 }
 
 export const exportLaporanKasExcel = async (req, res) => {
   try {
     const { periode } = req.query;
-    
+
     let sheetName = 'Buku Kas RT';
     const localMonthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     let targetYear = -1, targetMonthIndex = -1;
@@ -85,11 +85,11 @@ export const exportLaporanKasExcel = async (req, res) => {
       sheetName += ` - ${localMonthNames[targetMonthIndex]} ${targetYear}`;
     }
 
-    const pemasukan = await prisma.pemasukan.findMany({ 
+    const pemasukan = await prisma.pemasukan.findMany({
       include: { kategoripemasukan: true, warga: true },
       orderBy: { tanggal: 'asc' }
     });
-    const pengeluaran = await prisma.pengeluaran.findMany({ 
+    const pengeluaran = await prisma.pengeluaran.findMany({
       include: { kategoripengeluaran: true },
       orderBy: { tanggal: 'asc' }
     });
@@ -163,10 +163,10 @@ export const exportLaporanKasExcel = async (req, res) => {
       const tYear = t.tanggal.getFullYear();
       const tMonth = t.tanggal.getMonth();
       const isInsidePeriod = !periode || (tYear === targetYear && tMonth === targetMonthIndex);
-      
+
       if (isInsidePeriod) {
         const isMasuk = t.type === 'in';
-        
+
         if (isMasuk) {
           currentSaldo += t.nominal;
           totalPemasukan += t.nominal;
@@ -227,7 +227,7 @@ export const exportLaporanKasExcel = async (req, res) => {
 export const exportLaporanKasPDF = async (req, res) => {
   try {
     const { periode } = req.query;
-    
+
     let headerText = 'Laporan Buku Kas Umum RT';
     const localMonthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     let targetYear = -1, targetMonthIndex = -1;
@@ -237,13 +237,21 @@ export const exportLaporanKasPDF = async (req, res) => {
       targetMonthIndex = parseInt(m) - 1;
       headerText += ` - Bulan ${localMonthNames[targetMonthIndex]} ${targetYear}`;
     }
-
+    // Ganti pemanggilan puppeteer.launch Anda menjadi seperti ini:
+    const browser = await puppeteer.launch({
+      headless: true, // atau "new"
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage'
+      ]
+    });
     // --- FETCH DATA FIRST ---
-    const pemasukan = await prisma.pemasukan.findMany({ 
+    const pemasukan = await prisma.pemasukan.findMany({
       include: { kategoripemasukan: true, warga: true },
       orderBy: { tanggal: 'asc' }
     });
-    const pengeluaran = await prisma.pengeluaran.findMany({ 
+    const pengeluaran = await prisma.pengeluaran.findMany({
       include: { kategoripengeluaran: true },
       orderBy: { tanggal: 'asc' }
     });
@@ -277,16 +285,16 @@ export const exportLaporanKasPDF = async (req, res) => {
     let totalPengeluaran = 0;
 
     const tableData = [];
-    
+
     // Saldo Awal Row
     tableData.push({
-      no: '-', 
-      tanggal: '-', 
-      kategori: '-', 
-      uraian: 'Saldo Awal', 
-      penerima: '-', 
-      pemasukan: '-', 
-      pengeluaran: '-', 
+      no: '-',
+      tanggal: '-',
+      kategori: '-',
+      uraian: 'Saldo Awal',
+      penerima: '-',
+      pemasukan: '-',
+      pengeluaran: '-',
       saldo: formatRupiah(currentSaldo)
     });
 
@@ -295,10 +303,10 @@ export const exportLaporanKasPDF = async (req, res) => {
       const tYear = t.tanggal.getFullYear();
       const tMonth = t.tanggal.getMonth();
       const isInsidePeriod = !periode || (tYear === targetYear && tMonth === targetMonthIndex);
-      
+
       if (isInsidePeriod) {
         const isMasuk = t.type === 'in';
-        
+
         if (isMasuk) {
           currentSaldo += t.nominal;
           totalPemasukan += t.nominal;
@@ -322,55 +330,86 @@ export const exportLaporanKasPDF = async (req, res) => {
 
     // Total Row
     tableData.push({
-      no: '-', 
-      tanggal: '-', 
-      kategori: '-', 
-      uraian: 'TOTAL', 
-      penerima: '-', 
-      pemasukan: formatRupiah(totalPemasukan), 
-      pengeluaran: formatRupiah(totalPengeluaran), 
+      no: '-',
+      tanggal: '-',
+      kategori: '-',
+      uraian: 'TOTAL',
+      penerima: '-',
+      pemasukan: formatRupiah(totalPemasukan),
+      pengeluaran: formatRupiah(totalPengeluaran),
       saldo: formatRupiah(currentSaldo)
     });
 
-    // --- NOW INITIALIZE PDF ---
-    const doc = new PDFDocument({ margin: 30, size: 'A4' });
-    let filename = 'laporan_kas.pdf';
-    
-    const chunks = [];
-    doc.on('data', chunk => chunks.push(chunk));
-    doc.on('end', () => {
-      const result = Buffer.concat(chunks);
-      res.setHeader('Content-Length', Buffer.byteLength(result));
-      res.setHeader('Content-disposition', 'inline; filename="' + filename + '"');
-      res.setHeader('Content-type', 'application/pdf');
-      res.send(result);
+    // --- GENERATE HTML FOR PUPPETEER ---
+    let tableHtml = `
+      <table style="width: 100%; border-collapse: collapse; font-family: Helvetica, Arial, sans-serif; font-size: 10px;">
+        <thead>
+          <tr style="background-color: #f2f2f2; font-weight: bold; text-align: left;">
+            <th style="border: 1px solid #ddd; padding: 6px;">No</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Tanggal</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Kategori</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Uraian</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Penerima</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Pemasukan</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Pengeluaran</th>
+            <th style="border: 1px solid #ddd; padding: 6px;">Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    tableData.forEach(row => {
+      tableHtml += `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.no}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.tanggal}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.kategori}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.uraian}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.penerima}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.pemasukan}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.pengeluaran}</td>
+          <td style="border: 1px solid #ddd; padding: 6px;">${row.saldo}</td>
+        </tr>
+      `;
     });
 
-    doc.fontSize(16).text(headerText, { align: 'center' });
-    doc.moveDown(2);
+    tableHtml += `
+        </tbody>
+      </table>
+    `;
 
-    const table = {
-      headers: [
-        { label: "No", property: "no", width: 25 },
-        { label: "Tanggal", property: "tanggal", width: 55 },
-        { label: "Kategori", property: "kategori", width: 70 },
-        { label: "Uraian", property: "uraian", width: 100 },
-        { label: "Penerima", property: "penerima", width: 65 },
-        { label: "Pemasukan", property: "pemasukan", width: 75 },
-        { label: "Pengeluaran", property: "pengeluaran", width: 75 },
-        { label: "Saldo", property: "saldo", width: 70 },
-      ],
-      datas: tableData,
-    };
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Helvetica, Arial, sans-serif; margin: 30px; }
+            h2 { text-align: center; font-size: 16px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <h2>${headerText}</h2>
+          ${tableHtml}
+        </body>
+      </html>
+    `;
 
-    await doc.table(table, {
-      prepareHeader: () => doc.font("Helvetica-Bold").fontSize(9),
-      prepareRow: (row, indexColumn, indexRow, rectRow, rectCell) => {
-        doc.font("Helvetica").fontSize(8);
-      },
-    });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-    doc.end();
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+
+    await browser.close();
+
+    // === INI ADALAH KUNCI AGAR LAYAR TIDAK PUTIH ===
+    // Memberitahu browser bahwa ini adalah dokumen PDF
+    res.setHeader('Content-Type', 'application/pdf');
+
+    // 'inline' berarti langsung dibuka di tab browser. 
+    // Jika ingin otomatis terdownload, ganti 'inline' menjadi 'attachment'
+    res.setHeader('Content-Disposition', 'inline; filename="Laporan-Keuangan.pdf"');
+
+    // Mengirimkan file ke browser
+    res.send(pdfBuffer);
   } catch (error) {
     console.error("PDF Generation Error:", error);
     if (!res.headersSent) {
@@ -386,11 +425,11 @@ const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Ju
 function parsePeriode(periodeString) {
   const parts = periodeString.split(' ');
   if (parts.length === 2) {
-      const monthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === parts[0].toLowerCase());
-      const year = parseInt(parts[1]);
-      if (monthIndex !== -1 && !isNaN(year)) {
-          return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-      }
+    const monthIndex = MONTH_NAMES.findIndex(m => m.toLowerCase() === parts[0].toLowerCase());
+    const year = parseInt(parts[1]);
+    if (monthIndex !== -1 && !isNaN(year)) {
+      return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+    }
   }
   return periodeString;
 }
@@ -434,7 +473,7 @@ export const getLaporanKumulatif = async (req, res) => {
       if (data.saldoAwal !== null) {
         currentSaldo = data.saldoAwal;
       }
-      
+
       const akhir = currentSaldo + data.pemasukan - data.pengeluaran;
       kumulatifData.push({
         key,
@@ -507,13 +546,13 @@ export const getLaporanBulanan = async (req, res) => {
         }
         break;
       }
-      
+
       const data = periodMap.get(key);
       if (data.saldoAwal !== null) {
         currentSaldo = data.saldoAwal;
       }
       currentSaldo = currentSaldo + data.pemasukan - data.pengeluaran;
-      initialBalance = currentSaldo; 
+      initialBalance = currentSaldo;
     }
 
     const allTransactions = [
@@ -546,8 +585,8 @@ export const getLaporanBulanan = async (req, res) => {
       recapPengeluaran[cat] = (recapPengeluaran[cat] || 0) + Number(p.nominal);
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         saldoAwal: initialBalance,
         transactions: allTransactions,
@@ -555,7 +594,7 @@ export const getLaporanBulanan = async (req, res) => {
           pemasukan: Object.keys(recapPemasukan).map(k => ({ kategori: k, total: recapPemasukan[k] })),
           pengeluaran: Object.keys(recapPengeluaran).map(k => ({ kategori: k, total: recapPengeluaran[k] }))
         }
-      } 
+      }
     });
   } catch (error) {
     console.error(error);
