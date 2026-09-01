@@ -342,17 +342,17 @@ export const exportLaporanKasPDF = async (req, res) => {
 
     // --- GENERATE HTML FOR PUPPETEER ---
     let tableHtml = `
-      <table style="width: 100%; border-collapse: collapse; font-family: Helvetica, Arial, sans-serif; font-size: 10px;">
+      <table style="width: 100%; border-collapse: collapse; font-family: Helvetica, Arial, sans-serif; font-size: 10px; border: 1px solid #000;">
         <thead>
           <tr style="background-color: #f2f2f2; font-weight: bold; text-align: left;">
-            <th style="border: 1px solid #ddd; padding: 6px;">No</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Tanggal</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Kategori</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Uraian</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Penerima</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Pemasukan</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Pengeluaran</th>
-            <th style="border: 1px solid #ddd; padding: 6px;">Saldo</th>
+            <th style="border: 1px solid #000; padding: 6px;">No</th>
+            <th style="border: 1px solid #000; padding: 6px;">Tanggal</th>
+            <th style="border: 1px solid #000; padding: 6px;">Kategori</th>
+            <th style="border: 1px solid #000; padding: 6px;">Uraian</th>
+            <th style="border: 1px solid #000; padding: 6px;">Penerima</th>
+            <th style="border: 1px solid #000; padding: 6px;">Pemasukan</th>
+            <th style="border: 1px solid #000; padding: 6px;">Pengeluaran</th>
+            <th style="border: 1px solid #000; padding: 6px;">Saldo</th>
           </tr>
         </thead>
         <tbody>
@@ -361,14 +361,14 @@ export const exportLaporanKasPDF = async (req, res) => {
     tableData.forEach(row => {
       tableHtml += `
         <tr>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.no}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.tanggal}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.kategori}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.uraian}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.penerima}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.pemasukan}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.pengeluaran}</td>
-          <td style="border: 1px solid #ddd; padding: 6px;">${row.saldo}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.no}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.tanggal}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.kategori}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.uraian}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.penerima}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.pemasukan}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.pengeluaran}</td>
+          <td style="border: 1px solid #000; padding: 6px;">${row.saldo}</td>
         </tr>
       `;
     });
