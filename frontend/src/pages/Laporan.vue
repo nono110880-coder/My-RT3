@@ -58,7 +58,7 @@ onMounted(() => {
   }
 });
 
-const handleExport = (format) => {
+const handleExport = async (format) => {
   try {
     const params = new URLSearchParams();
     if (activeTab.value === 'bulanan') {
@@ -68,19 +68,24 @@ const handleExport = (format) => {
     // Cache buster untuk menghindari cache Service Worker / Browser
     params.append('_cb', Date.now());
     
-    const url = `${getBaseUrl()}/laporan/${format}?${params.toString()}`;
+    const response = await api.get(`/laporan/${format}?${params.toString()}`, {
+      responseType: 'blob'
+    });
 
-    if (format === 'pdf') {
-      window.open(url, '_blank');
-    } else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'Laporan_Keuangan.xlsx');
-      link.setAttribute('target', '_blank');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+    const filename = `Laporan_Keuangan_${Date.now()}.${ext}`;
+    
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(link);
   } catch (error) {
     console.error(`Gagal mengunduh laporan ${format}`, error);
     alert("Terjadi kesalahan saat mengunduh laporan.");
