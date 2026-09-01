@@ -72,20 +72,26 @@ const handleExport = async (format) => {
       responseType: 'blob'
     });
 
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    
-    const ext = format === 'pdf' ? 'pdf' : 'xlsx';
-    const filename = `Laporan_Keuangan_${Date.now()}.${ext}`;
-    
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(link);
+    if (format === 'pdf') {
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Cleanup setelah tab baru terbuka
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } else {
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Laporan_Keuangan_${Date.now()}.xlsx`);
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+    }
   } catch (error) {
     console.error(`Gagal mengunduh laporan ${format}`, error);
     alert("Terjadi kesalahan saat mengunduh laporan.");
